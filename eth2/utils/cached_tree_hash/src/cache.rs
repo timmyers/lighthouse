@@ -1,10 +1,13 @@
 use crate::{Error, Hash256};
 use eth2_hashing::{hash_concat, ZERO_HASHES};
+use ssz::{Decode, DecodeError, Encode, SszBytes};
 use ssz_derive::{Decode, Encode};
 use tree_hash::BYTES_PER_CHUNK;
 
+const HASH_SIZE: usize = 32;
+
 /// Sparse Merkle tree suitable for tree hashing vectors and lists.
-#[derive(Debug, PartialEq, Clone, Default, Encode, Decode)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct TreeHashCache {
     /// Depth is such that the tree has a capacity for 2^depth leaves
     depth: usize,
@@ -126,6 +129,78 @@ impl TreeHashCache {
 
     pub fn leaves(&mut self) -> &mut Vec<Hash256> {
         &mut self.layers[self.depth]
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let container = SszContainer::from_ssz_bytes(bytes).map_err(|e| Error::BytesInvalid(e))?;
+
+        container.into_tree_hash_cache()
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        SszContainer::from_tree_hash_cache(self).as_ssz_bytes()
+    }
+}
+
+/// A helper struct for more efficient SSZ encoding/decoding.
+#[derive(Encode, Decode)]
+struct SszContainer {
+    depth: usize,
+    layers: Vec<SszBytes>,
+}
+
+impl SszContainer {
+    fn from_tree_hash_cache(cache: &TreeHashCache) -> SszContainer {
+        let layers = cache
+            .layers
+            .iter()
+            .map(|layer| {
+                SszBytes(layer.iter().fold(
+                    Vec::with_capacity(layer.len() * HASH_SIZE),
+                    |mut bytes, hash| {
+                        bytes.extend_from_slice(hash.as_bytes());
+                        bytes
+                    },
+                ))
+            })
+            .collect();
+
+        SszContainer {
+            layers,
+            depth: cache.depth,
+        }
+    }
+
+    fn into_tree_hash_cache(self) -> Result<TreeHashCache, Error> {
+        let layers = self
+            .layers
+            .iter()
+            .map(|ssz_bytes_container| {
+                let vec = &ssz_bytes_container.0;
+
+                if vec.len() == 0 {
+                    return Ok(vec![]);
+                } else if vec.len() % HASH_SIZE != 0 {
+                    return Err(Error::BytesInvalid(DecodeError::BytesInvalid(format!(
+                        "Given layer bytes were not a multiple of {}",
+                        HASH_SIZE
+                    ))));
+                }
+
+                Ok(vec.chunks(HASH_SIZE).fold(
+                    Vec::with_capacity(vec.len() / HASH_SIZE),
+                    |mut acc, chunk| {
+                        acc.push(Hash256::from_slice(&chunk));
+                        acc
+                    },
+                ))
+            })
+            .collect::<Result<_, _>>()?;
+
+        Ok(TreeHashCache {
+            layers,
+            depth: self.depth,
+        })
     }
 }
 

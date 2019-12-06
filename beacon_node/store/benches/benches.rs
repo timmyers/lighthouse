@@ -70,7 +70,7 @@ fn all_benches(c: &mut Criterion) {
         Benchmark::new("encode/beacon_state/tree_hash_cache", move |b| {
             b.iter_batched_ref(
                 || inner_state.tree_hash_cache.clone(),
-                |tree_hash_cache| black_box(tree_hash_cache.as_ssz_bytes()),
+                |tree_hash_cache| black_box(tree_hash_cache.as_bytes()),
                 criterion::BatchSize::SmallInput,
             )
         })

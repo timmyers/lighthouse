@@ -2,7 +2,7 @@ use self::committee_cache::get_active_validator_indices;
 use self::exit_cache::ExitCache;
 use crate::test_utils::TestRandom;
 use crate::*;
-use cached_tree_hash::{CachedTreeHash, MultiTreeHashCache, TreeHashCache};
+use cached_tree_hash::CachedTreeHash;
 use compare_fields_derive::CompareFields;
 use eth2_hashing::hash;
 use int_to_bytes::{int_to_bytes4, int_to_bytes8};
@@ -17,10 +17,12 @@ use tree_hash::TreeHash;
 use tree_hash_derive::{CachedTreeHash, TreeHash};
 
 pub use self::committee_cache::CommitteeCache;
+pub use beacon_tree_hash_cache::BeaconTreeHashCache;
 pub use eth_spec::*;
 
 #[macro_use]
 mod committee_cache;
+mod beacon_tree_hash_cache;
 mod exit_cache;
 mod pubkey_cache;
 mod tests;
@@ -76,24 +78,6 @@ impl AllowNextEpoch {
             AllowNextEpoch::True => current_epoch + 1,
             AllowNextEpoch::False => current_epoch,
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone, Default, Encode, Decode)]
-pub struct BeaconTreeHashCache {
-    initialized: bool,
-    block_roots: TreeHashCache,
-    state_roots: TreeHashCache,
-    historical_roots: TreeHashCache,
-    validators: MultiTreeHashCache,
-    balances: TreeHashCache,
-    randao_mixes: TreeHashCache,
-    slashings: TreeHashCache,
-}
-
-impl BeaconTreeHashCache {
-    pub fn is_initialized(&self) -> bool {
-        self.initialized
     }
 }
 

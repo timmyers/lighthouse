@@ -1,5 +1,5 @@
 use crate::*;
-use ssz::{Decode, DecodeError, Encode};
+use ssz::{Decode, DecodeError, Encode, SszBytes};
 use ssz_derive::{Decode, Encode};
 use std::convert::TryInto;
 use types::beacon_state::{BeaconTreeHashCache, CommitteeCache, CACHED_EPOCHS};
@@ -47,7 +47,7 @@ pub fn get_full_state<S: Store, E: EthSpec>(
 pub struct StorageContainer<T: EthSpec> {
     state: BeaconState<T>,
     committee_caches: Vec<CommitteeCache>,
-    tree_hash_cache: BeaconTreeHashCache,
+    tree_hash_cache_bytes: SszBytes,
 }
 
 impl<T: EthSpec> StorageContainer<T> {
@@ -67,7 +67,7 @@ impl<T: EthSpec> StorageContainer<T> {
         Self {
             state,
             committee_caches,
-            tree_hash_cache,
+            tree_hash_cache_bytes: SszBytes(tree_hash_cache.as_bytes()),
         }
     }
 }
@@ -88,7 +88,7 @@ impl<T: EthSpec> TryInto<BeaconState<T>> for StorageContainer<T> {
             state.committee_caches[i] = self.committee_caches.remove(i);
         }
 
-        state.tree_hash_cache = self.tree_hash_cache;
+        state.tree_hash_cache = BeaconTreeHashCache::from_bytes(&self.tree_hash_cache_bytes.0)?;
 
         Ok(state)
     }

@@ -2,6 +2,20 @@ use super::*;
 use core::num::NonZeroUsize;
 use ethereum_types::{H256, U128, U256};
 
+impl Encode for SszBytes {
+    fn is_ssz_fixed_len() -> bool {
+        false
+    }
+
+    fn ssz_bytes_len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn ssz_append(&self, buf: &mut Vec<u8>) {
+        buf.append(&mut self.0.clone())
+    }
+}
+
 macro_rules! impl_encodable_for_uint {
     ($type: ident, $bit_size: expr) => {
         impl Encode for $type {

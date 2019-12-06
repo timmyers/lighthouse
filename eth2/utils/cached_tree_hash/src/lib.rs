@@ -8,6 +8,7 @@ pub use crate::cache::TreeHashCache;
 pub use crate::impls::int_log;
 pub use crate::multi_cache::MultiTreeHashCache;
 use ethereum_types::H256 as Hash256;
+use ssz::DecodeError;
 use tree_hash::TreeHash;
 
 #[derive(Debug, PartialEq)]
@@ -19,6 +20,8 @@ pub enum Error {
     CannotShrink,
     /// Cache is inconsistent with the list of dirty indices provided.
     CacheInconsistent,
+    /// The provided bytes did not decode as a valid `TreeHashCache`.
+    BytesInvalid(DecodeError),
 }
 
 /// Trait for types which can make use of a cache to accelerate calculation of their tree hash root.

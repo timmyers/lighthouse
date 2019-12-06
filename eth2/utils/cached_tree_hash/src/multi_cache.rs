@@ -1,4 +1,5 @@
 use crate::{int_log, CachedTreeHash, Error, Hash256, TreeHashCache};
+use ssz::{Decode, Encode, SszBytes};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{typenum::Unsigned, VariableList};
 use tree_hash::mix_in_length;
@@ -10,7 +11,7 @@ use tree_hash::mix_in_length;
 /// Note: this cache could be made composable by replacing the hardcoded `Vec<TreeHashCache>` with
 /// `Vec<C>`, allowing arbitrary nesting, but for now we stick to 2-level nesting because that's all
 /// we need.
-#[derive(Debug, PartialEq, Clone, Default, Encode, Decode)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct MultiTreeHashCache {
     list_cache: TreeHashCache,
     value_caches: Vec<TreeHashCache>,
@@ -58,5 +59,48 @@ where
             list_root.as_bytes(),
             self.len(),
         )))
+    }
+}
+
+impl MultiTreeHashCache {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let container = SszContainer::from_ssz_bytes(bytes).map_err(|e| Error::BytesInvalid(e))?;
+
+        container.into_multi_cache()
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        SszContainer::from_multi_cache(self).as_ssz_bytes()
+    }
+}
+
+/// A helper struct for more efficient SSZ encoding/decoding.
+#[derive(Encode, Decode)]
+struct SszContainer {
+    list_cache: SszBytes,
+    value_caches: Vec<SszBytes>,
+}
+
+impl SszContainer {
+    fn from_multi_cache(cache: &MultiTreeHashCache) -> SszContainer {
+        SszContainer {
+            list_cache: SszBytes(cache.list_cache.as_bytes()),
+            value_caches: cache
+                .value_caches
+                .iter()
+                .map(|vc| SszBytes(vc.as_bytes()))
+                .collect(),
+        }
+    }
+
+    fn into_multi_cache(self) -> Result<MultiTreeHashCache, Error> {
+        Ok(MultiTreeHashCache {
+            list_cache: TreeHashCache::from_bytes(&self.list_cache.0)?,
+            value_caches: self
+                .value_caches
+                .iter()
+                .map(|ssz_bytes| TreeHashCache::from_bytes(&ssz_bytes.0))
+                .collect::<Result<_, _>>()?,
+        })
     }
 }

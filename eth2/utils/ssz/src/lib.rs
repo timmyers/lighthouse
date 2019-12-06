@@ -50,6 +50,15 @@ pub const MAX_LENGTH_VALUE: usize = (std::u32::MAX >> (8 * (4 - BYTES_PER_LENGTH
 #[cfg(target_pointer_width = "64")]
 pub const MAX_LENGTH_VALUE: usize = (std::u64::MAX >> (8 * (8 - BYTES_PER_LENGTH_OFFSET))) as usize;
 
+/// Provides a _much_ faster way to SSZ encode a simple `Vec` of bytes.
+///
+/// Simply using `Vec::as_ssz_bytes()` will result in a potential allocation for each byte! This is
+/// because `Vec<u8>` ends up being encoded using `impl<T: Encode> Encode for Vec<T>`, which
+/// applies every single element to an encoder. In the case of a `Vec<u8>`, the buffer will be
+/// extended for every single byte in the byte array, leading to many allocations.
+#[derive(Debug, PartialEq, Default, Clone)]
+pub struct SszBytes(pub Vec<u8>);
+
 /// Convenience function to SSZ encode an object supporting ssz::Encode.
 ///
 /// Equivalent to `val.as_ssz_bytes()`.

@@ -2,6 +2,16 @@ use super::*;
 use core::num::NonZeroUsize;
 use ethereum_types::{H256, U128, U256};
 
+impl Decode for SszBytes {
+    fn is_ssz_fixed_len() -> bool {
+        false
+    }
+
+    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
+        Ok(SszBytes(bytes.to_vec()))
+    }
+}
+
 macro_rules! impl_decodable_for_uint {
     ($type: ident, $bit_size: expr) => {
         impl Decode for $type {
@@ -439,6 +449,32 @@ mod tests {
 
     // Note: decoding of valid bytes is generally tested "indirectly" in the `/tests` dir, by
     // encoding then decoding the element.
+
+    #[test]
+    fn ssz_bytes_comparison() {
+        let bytes = vec![1, 2, 3, 4];
+        let ssz_bytes = SszBytes(bytes.clone());
+        assert_eq!(bytes.as_ssz_bytes(), ssz_bytes.as_ssz_bytes());
+
+        let bytes = vec![];
+        let ssz_bytes = SszBytes(bytes.clone());
+        assert_eq!(bytes.as_ssz_bytes(), ssz_bytes.as_ssz_bytes());
+    }
+
+    #[test]
+    fn ssz_bytes_round_trip() {
+        assert_eq!(SszBytes::from_ssz_bytes(&vec![]), Ok(SszBytes(vec![])));
+
+        assert_eq!(
+            SszBytes::from_ssz_bytes(&vec![0; 3]),
+            Ok(SszBytes(vec![0; 3]))
+        );
+
+        assert_eq!(
+            SszBytes::from_ssz_bytes(&vec![1, 2, 3]),
+            Ok(SszBytes(vec![1, 2, 3]))
+        );
+    }
 
     #[test]
     fn invalid_u8_array_4() {
