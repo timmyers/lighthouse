@@ -10,6 +10,9 @@ Before you start, you'll need [Metamask](https://metamask.io/) and 3.2 gETH
 faucet](https://faucet.goerli.mudit.blog/) for those familiar with Goerli, or
 [goerli.net](https://goerli.net/) for an overview of the testnet.
 
+We also ask that you read the "Annoucement" section of our [Lighthouse Update #19](https://lighthouse.sigmaprime.io/update-19.html)
+for some background on the testnet.
+
 ### 1. Download and install Lighthouse
 
 If you already have Rust installed, you can install Lighthouse with the
