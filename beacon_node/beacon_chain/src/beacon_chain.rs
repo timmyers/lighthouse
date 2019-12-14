@@ -1,3 +1,4 @@
+use crate::ancestor_accumulator::{AncestorAccumulator, INITIAL_ANCESTORS};
 use crate::checkpoint::CheckPoint;
 use crate::checkpoint_cache::CheckPointCache;
 use crate::errors::{BeaconChainError as Error, BlockProductionError};
@@ -29,7 +30,8 @@ use std::io::prelude::*;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use store::iter::{
-    BlockRootsIterator, ReverseBlockRootIterator, ReverseStateRootIterator, StateRootsIterator,
+    AncestorRoots, BlockRootsIterator, ReverseBlockRootIterator, ReverseStateRootIterator,
+    StateRootsIterator,
 };
 use store::{Error as DBError, Migrate, Store};
 use tree_hash::TreeHash;
@@ -1663,6 +1665,66 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
             Ok(())
         }
+    }
+
+    fn prune_heads(&self) -> Result<(), Error> {
+        let head_root = self.canonical_head.read().beacon_block_root;
+        let finalized_slot = self
+            .canonical_head
+            .read()
+            .beacon_state
+            .finalized_checkpoint
+            .epoch
+            .start_slot(T::EthSpec::slots_per_epoch());
+
+        let head_ancestors =
+            AncestorAccumulator::new(self.store.clone(), &self.canonical_head.read())?;
+
+        for (root, slot) in self.head_tracker.heads() {
+            if root != head_root && slot <= finalized_slot {
+                let block: BeaconBlock<T::EthSpec> = self
+                    .store
+                    .get(&root)?
+                    .ok_or_else(|| Error::MissingBeaconBlock(root))?;
+                let state = self
+                    .store
+                    .get_state(&block.state_root, Some(block.slot))?
+                    .ok_or_else(|| Error::MissingBeaconState(root))?;
+
+                let mut ancestors =
+                    AncestorRoots::block_roots(self.store.clone(), &state, INITIAL_ANCESTORS)
+                        .ok_or_else(|| Error::UnableToCreateAncestorRoots)?;
+
+                let mut prunable_block_roots = vec![];
+
+                for (ancestor_root, ancestor_slot) in ancestors.iter() {
+                    if !head_ancestors.contains(ancestor_root, ancestor_slot)? {
+                        prunable_block_roots.push(ancestor_root)
+                    } else {
+                        break;
+                    }
+                }
+
+                // TODO: remove from heads.
+
+                for block_root in prunable_block_roots {
+                    let state_root = self
+                        .store
+                        .get::<BeaconBlock<T::EthSpec>>(&root)?
+                        .ok_or_else(|| Error::MissingBeaconBlock(root))?
+                        .state_root;
+
+                    // Remove the block before the state otherwise the block can have a "dangling
+                    // pointer" to the state (`block.state_root`).
+                    self.store.delete::<BeaconBlock<T::EthSpec>>(&block_root)?;
+                    // TODO: How do we delete a beacon state?
+                    self.store.delete::<BeaconState<T::EthSpec>>(&state_root)?;
+                }
+            }
+        }
+
+        Ok(())
+        //
     }
 
     /// Returns `true` if the given block root has not been processed.

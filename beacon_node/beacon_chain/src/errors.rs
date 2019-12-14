@@ -1,3 +1,4 @@
+use crate::ancestor_accumulator::Error as AncestorAccumulatorError;
 use crate::eth1_chain::Error as Eth1ChainError;
 use crate::fork_choice::Error as ForkChoiceError;
 use ssz_types::Error as SszTypesError;
@@ -48,11 +49,14 @@ pub enum BeaconChainError {
     /// Returned when an internal check fails, indicating corrupt data.
     InvariantViolated(String),
     SszTypesError(SszTypesError),
+    AncestorAccumulatorError(AncestorAccumulatorError),
+    UnableToCreateAncestorRoots,
 }
 
 easy_from_to!(SlotProcessingError, BeaconChainError);
 easy_from_to!(AttestationValidationError, BeaconChainError);
 easy_from_to!(SszTypesError, BeaconChainError);
+easy_from_to!(AncestorAccumulatorError, BeaconChainError);
 
 #[derive(Debug, PartialEq)]
 pub enum BlockProductionError {
