@@ -2,6 +2,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+mod ancestor_accumulator;
 mod beacon_chain;
 pub mod builder;
 mod checkpoint;
