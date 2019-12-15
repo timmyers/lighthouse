@@ -1677,10 +1677,17 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .epoch
             .start_slot(T::EthSpec::slots_per_epoch());
 
-        let head_ancestors =
+        let mut head_ancestors =
             AncestorAccumulator::new(self.store.clone(), &self.canonical_head.read())?;
 
         for (root, slot) in self.head_tracker.heads() {
+            // Note: here we check to see if the head of the chain is beyond the finalized slot.
+            // This could be more strict, any distincy chain that has a block that is equal to or
+            // prior to the finalized checkpoint can be deleted, regardless of the slot of the head
+            // of the chain.
+            //
+            // We use this relaxed version because it's less likely to cause errors in other
+            // functions/systems which may also operated with a relaxed pruning strategy.
             if root != head_root && slot <= finalized_slot {
                 let block: BeaconBlock<T::EthSpec> = self
                     .store
@@ -1717,8 +1724,12 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     // Remove the block before the state otherwise the block can have a "dangling
                     // pointer" to the state (`block.state_root`).
                     self.store.delete::<BeaconBlock<T::EthSpec>>(&block_root)?;
-                    // TODO: How do we delete a beacon state?
+
+                    /*
+                     * TODO: How do we delete a beacon state?
+                     *
                     self.store.delete::<BeaconState<T::EthSpec>>(&state_root)?;
+                    */
                 }
             }
         }
