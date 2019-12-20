@@ -23,7 +23,7 @@ pub const YAML_CONFIG_FILE: &str = "config.yaml";
 pub const HARDCODED_YAML_CONFIG: &[u8] = include_bytes!("../testnet/config.yaml");
 pub const HARDCODED_DEPLOY_BLOCK: &[u8] = include_bytes!("../testnet/deploy_block.txt");
 pub const HARDCODED_DEPOSIT_CONTRACT: &[u8] = include_bytes!("../testnet/deposit_contract.txt");
-pub const HARDCODED_GENESIS_STATE: &[u8] = include_bytes!("../testnet/genesis.ssz");
+// pub const HARDCODED_GENESIS_STATE: &[u8] = include_bytes!("../testnet/genesis.ssz");
 pub const HARDCODED_BOOT_ENR: &[u8] = include_bytes!("../testnet/boot_enr.yaml");
 
 /// Specifies an Eth2 testnet.
@@ -53,10 +53,13 @@ impl<E: EthSpec> Eth2TestnetConfig<E> {
                 serde_yaml::from_reader(HARDCODED_BOOT_ENR)
                     .map_err(|e| format!("Unable to parse boot enr: {:?}", e))?,
             ),
+            /*
             genesis_state: Some(
                 BeaconState::from_ssz_bytes(HARDCODED_GENESIS_STATE)
                     .map_err(|e| format!("Unable to parse genesis state: {:?}", e))?,
             ),
+            */
+            genesis_state: None,
             yaml_config: Some(
                 serde_yaml::from_reader(HARDCODED_YAML_CONFIG)
                     .map_err(|e| format!("Unable to parse genesis state: {:?}", e))?,
