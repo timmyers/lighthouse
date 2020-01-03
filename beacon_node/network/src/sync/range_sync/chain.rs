@@ -200,7 +200,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
         // An entire batch of blocks has been received. This functions checks to see if it can be processed,
         // remove any batches waiting to be verified and if this chain is syncing, request new
         // blocks for the peer.
-        debug!(log, "Completed batch received"; "id"=>batch.id, "blocks"=>batch.downloaded_blocks.len(), "awaiting_batches" => self.completed_batches.len());
+        debug!(log, "Batch received"; "id" => batch.id, "blocks" => batch.downloaded_blocks.len(), "awaiting_batches" => self.completed_batches.len());
 
         // The peer that completed this batch, may be re-requested if this batch doesn't complete
         // the chain and there is no error in processing

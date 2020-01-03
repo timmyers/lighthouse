@@ -8,6 +8,7 @@ use eth2_libp2p::{rpc::RPCRequest, Enr, Libp2pEvent, MessageId, Multiaddr, PeerI
 use eth2_libp2p::{PubsubMessage, RPCEvent};
 use futures::prelude::*;
 use futures::Stream;
+use logging::trace_ext;
 use parking_lot::Mutex;
 use slog::{debug, info, trace};
 use std::sync::Arc;
@@ -164,7 +165,7 @@ fn network_service(
             match network_recv.poll() {
                 Ok(Async::Ready(Some(message))) => match message {
                     NetworkMessage::RPC(peer_id, rpc_event) => {
-                        trace!(log, "Sending RPC"; "rpc" => format!("{}", rpc_event));
+                        trace_ext!(log, "Sending RPC"; "rpc" => format!("{}", rpc_event));
                         libp2p_service.lock().swarm.send_rpc(peer_id, rpc_event);
                     }
                     NetworkMessage::Propagate {
@@ -237,7 +238,7 @@ fn network_service(
             match libp2p_service.lock().poll() {
                 Ok(Async::Ready(Some(event))) => match event {
                     Libp2pEvent::RPC(peer_id, rpc_event) => {
-                        trace!(log, "Received RPC"; "rpc" => format!("{}", rpc_event));
+                        trace_ext!(log, "Received RPC"; "rpc" => format!("{}", rpc_event));
 
                         // if we received a Goodbye message, drop and ban the peer
                         if let RPCEvent::Request(_, RPCRequest::Goodbye(_)) = rpc_event {

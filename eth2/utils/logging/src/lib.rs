@@ -1,3 +1,6 @@
+/// Extensive trace logging
+pub mod trace_ext;
+
 use std::io::{Result, Write};
 
 pub const MAX_MESSAGE_WIDTH: usize = 40;

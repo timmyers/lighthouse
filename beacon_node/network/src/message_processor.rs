@@ -6,6 +6,7 @@ use beacon_chain::{
 use eth2_libp2p::rpc::methods::*;
 use eth2_libp2p::rpc::{RPCEvent, RPCRequest, RPCResponse, RequestId};
 use eth2_libp2p::PeerId;
+use logging::trace_ext;
 use slog::{debug, error, o, trace, warn};
 use ssz::Encode;
 use std::sync::Arc;
@@ -133,7 +134,7 @@ impl<T: BeaconChainTypes> MessageProcessor<T> {
         status: StatusMessage,
     ) {
         // ignore status responses if we are shutting down
-        trace!(self.log, "StatusRequest"; "peer" => format!("{:?}", peer_id));
+        trace!(self.log, "Status Request Received"; "peer" => format!("{:?}", peer_id), "status" => format!("{}", status));
 
         // Say status back.
         self.network.send_rpc_response(
@@ -147,7 +148,7 @@ impl<T: BeaconChainTypes> MessageProcessor<T> {
 
     /// Process a `Status` response from a peer.
     pub fn on_status_response(&mut self, peer_id: PeerId, status: StatusMessage) {
-        trace!(self.log, "StatusResponse"; "peer" => format!("{:?}", peer_id));
+        trace!(self.log, "Status Response Received"; "peer" => format!("{:?}", peer_id), "status" => format!("{}", status));
 
         // Process the status message, without sending back another status.
         self.process_status(peer_id, status);
@@ -393,7 +394,7 @@ impl<T: BeaconChainTypes> MessageProcessor<T> {
         beacon_block: Option<BeaconBlock<T::EthSpec>>,
     ) {
         let beacon_block = beacon_block.map(Box::new);
-        trace!(
+        trace_ext!(
             self.log,
             "Received BlocksByRange Response";
             "peer" => format!("{:?}", peer_id),
@@ -414,7 +415,7 @@ impl<T: BeaconChainTypes> MessageProcessor<T> {
         beacon_block: Option<BeaconBlock<T::EthSpec>>,
     ) {
         let beacon_block = beacon_block.map(Box::new);
-        trace!(
+        trace_ext!(
             self.log,
             "Received BlocksByRoot Response";
             "peer" => format!("{:?}", peer_id),
