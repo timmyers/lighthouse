@@ -1380,6 +1380,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             block.body.attestations.len() as f64,
         );
 
+        // Ensure all the validator pubkeys have been decompressed before placing the state in the
+        // cache.
+        state.decompress_validator_pubkeys()?;
+
         // Store the block in the checkpoint cache.
         //
         // A block that was just imported is likely to be referenced by the next block that we
