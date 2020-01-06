@@ -17,7 +17,7 @@
 //!  the finalized slot of the chain is reached. Once reached, all peers within the pool are sent a
 //!  STATUS message to potentially start a head chain sync, or check if further finalized chains
 //!  need to be downloaded.
-//!  
+//!
 //!  A few interesting notes about finalized chain syncing:
 //!  - Only one finalized chain can sync at a time.
 //!  - The finalized chain with the largest peer pool takes priority.
@@ -46,7 +46,7 @@ use crate::sync::network_context::SyncNetworkContext;
 use beacon_chain::{BeaconChain, BeaconChainTypes};
 use eth2_libp2p::rpc::RequestId;
 use eth2_libp2p::PeerId;
-use slog::{debug, trace, warn};
+use slog::{debug, error, trace, warn};
 use std::collections::HashSet;
 use std::sync::Weak;
 use types::{BeaconBlock, EthSpec};
@@ -106,7 +106,16 @@ impl<T: BeaconChainTypes> RangeSync<T> {
         // determine if we need to run a sync to the nearest finalized state or simply sync to
         // its current head
         let local_info = match self.beacon_chain.upgrade() {
-            Some(chain) => PeerSyncInfo::from(&chain),
+            Some(chain) => match PeerSyncInfo::from_chain(&chain) {
+                Some(local) => local,
+                None => {
+                    return error!(
+                        self.log,
+                        "Failed to get peer sync info";
+                        "msg" => "likely due to head lock contention"
+                    )
+                }
+            },
             None => {
                 warn!(self.log,
                       "Beacon chain dropped. Peer not considered for sync";
@@ -127,7 +136,7 @@ impl<T: BeaconChainTypes> RangeSync<T> {
         self.remove_peer(network, &peer_id);
 
         // remove any out-of-date chains
-        self.chains.purge_outdated_chains(network);
+        self.chains.purge_outdated_chains(network, &self.log);
 
         if remote_finalized_slot > local_info.head_slot {
             debug!(self.log, "Finalization sync peer joined"; "peer_id" => format!("{:?}", peer_id));
