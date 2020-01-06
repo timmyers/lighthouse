@@ -23,7 +23,10 @@ fn main() {
     let matches = App::new("Lighthouse")
         .version(crate_version!())
         .author("Sigma Prime <contact@sigmaprime.io>")
-        .about("Eth 2.0 Client")
+        .about(
+            "Ethereum 2.0 client by Sigma Prime. Provides a full-featured beacon \
+             node, a validator client and utilities for managing validator accounts.",
+        )
         .arg(
             Arg::with_name("spec")
                 .short("s")
@@ -33,13 +36,23 @@ fn main() {
                 .takes_value(true)
                 .possible_values(&["mainnet", "minimal", "interop"])
                 .global(true)
-                .default_value("minimal"),
+                .default_value("mainnet"),
         )
         .arg(
             Arg::with_name("logfile")
                 .long("logfile")
                 .value_name("FILE")
-                .help("File path where output will be written.")
+                .help(
+                    "File path where output will be written. Default file logging format is JSON.",
+                )
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("log-format")
+                .long("log-format")
+                .value_name("FORMAT")
+                .help("Specifies the format used for logging.")
+                .possible_values(&["JSON"])
                 .takes_value(true),
         )
         .arg(
@@ -92,12 +105,14 @@ fn run<E: EthSpec>(
     environment_builder: EnvironmentBuilder<E>,
     matches: &ArgMatches,
 ) -> Result<(), String> {
+    let debug_level = matches
+        .value_of("debug-level")
+        .ok_or_else(|| "Expected --debug-level flag".to_string())?;
+
+    let log_format = matches.value_of("log-format");
+
     let mut environment = environment_builder
-        .async_logger(
-            matches
-                .value_of("debug-level")
-                .ok_or_else(|| "Expected --debug-level flag".to_string())?,
-        )?
+        .async_logger(debug_level, log_format)?
         .multi_threaded_tokio_runtime()?
         .build()?;
 
@@ -107,7 +122,7 @@ fn run<E: EthSpec>(
         let path = log_path
             .parse::<PathBuf>()
             .map_err(|e| format!("Failed to parse log path: {:?}", e))?;
-        environment.log_to_json_file(path)?;
+        environment.log_to_json_file(path, debug_level, log_format)?;
     }
 
     if std::mem::size_of::<usize>() != 8 {
