@@ -1,8 +1,5 @@
+use bls_eth_rust::{HASH_SIZE, Message};
 use super::*;
-use milagro_bls::{
-    AggregatePublicKey as RawAggregatePublicKey, AggregateSignature as RawAggregateSignature,
-    G2Point,
-};
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
 use serde_hex::{encode as hex_encode, PrefixedHexVisitor};
@@ -14,7 +11,7 @@ use ssz::{Decode, DecodeError, Encode};
 /// serialization).
 #[derive(Debug, PartialEq, Clone, Default, Eq)]
 pub struct AggregateSignature {
-    aggregate_signature: RawAggregateSignature,
+    aggregate_signature: RawSignature,
     is_empty: bool,
 }
 
@@ -25,7 +22,7 @@ impl AggregateSignature {
     /// AggregateSignature is point at infinity
     pub fn new() -> Self {
         Self {
-            aggregate_signature: RawAggregateSignature::new(),
+            aggregate_signature: Default::default(),
             is_empty: false,
         }
     }
@@ -33,14 +30,14 @@ impl AggregateSignature {
     /// Add (aggregate) a signature to the `AggregateSignature`.
     pub fn add(&mut self, signature: &Signature) {
         if !self.is_empty {
-            self.aggregate_signature.add(signature.as_raw())
+            self.aggregate_signature.add_assign(signature.as_raw())
         }
     }
 
     /// Add (aggregate) another `AggregateSignature`.
     pub fn add_aggregate(&mut self, agg_signature: &AggregateSignature) {
         self.aggregate_signature
-            .add_aggregate(&agg_signature.aggregate_signature)
+            .add_assign(&agg_signature.aggregate_signature)
     }
 
     /// Verify the `AggregateSignature` against an `AggregatePublicKey`.
@@ -56,8 +53,23 @@ impl AggregateSignature {
         if self.is_empty {
             return false;
         }
-        self.aggregate_signature
-            .verify(msg, domain, aggregate_public_key.as_raw())
+
+        // Attempt to convert msg into fixed length array.
+        if HASH_SIZE == msg.len() {
+            let mut hash = [0u8; HASH_SIZE];
+            hash.copy_from_slice(&msg);
+            self.aggregate_signature
+                .verify_message(
+                    aggregate_public_key.as_raw(),
+                    &Message {
+                        hash,
+                        // TODO: Confirm Herumi domain is big endian bytes
+                        domain: domain.to_be_bytes(),
+                    }
+                )
+        } else {
+            false
+        }
     }
 
     /// Verify this AggregateSignature against multiple AggregatePublickeys with multiple Messages.
@@ -66,24 +78,38 @@ impl AggregateSignature {
     ///  Each AggregatePublicKey has a 1:1 ratio with a 32 byte Message.
     pub fn verify_multiple(
         &self,
-        messages: &[&[u8]],
+        message_bytes: &[&[u8]],
         domain: u64,
         aggregate_public_keys: &[&AggregatePublicKey],
     ) -> bool {
         if self.is_empty {
             return false;
         }
-        let aggregate_public_keys: Vec<&RawAggregatePublicKey> =
-            aggregate_public_keys.iter().map(|pk| pk.as_raw()).collect();
+        let aggregate_public_keys: Vec<RawPublicKey> =
+            aggregate_public_keys.iter().map(|pk| pk.as_raw().clone()).collect();
 
-        // Messages are concatenated into one long message.
-        let mut msgs: Vec<Vec<u8>> = vec![];
-        for message in messages {
-            msgs.push(message.to_vec());
+        // Messages to Herumi Message type.
+        let mut messages: Vec<Message> = vec![];
+        for message in message_bytes {
+            if HASH_SIZE == message.len() {
+                let mut hash = [0u8; HASH_SIZE];
+                hash.copy_from_slice(&message);
+                messages.push(
+                    Message {
+                        hash,
+                        // TODO: Confirm Herumi domain is big endian bytes
+                        domain: domain.to_be_bytes(),
+                    }
+                );
+            } else {
+                // Incorrect message length
+                return false;
+            }
+
         }
 
         self.aggregate_signature
-            .verify_multiple(&msgs, domain, &aggregate_public_keys[..])
+            .verify_aggregated_message(&aggregate_public_keys, &messages)
     }
 
     /// Return AggregateSignature as bytes
@@ -91,37 +117,35 @@ impl AggregateSignature {
         if self.is_empty {
             return vec![0; BLS_AGG_SIG_BYTE_SIZE];
         }
-        self.aggregate_signature.as_bytes()
+        self.aggregate_signature.serialize()
     }
 
     /// Convert bytes to AggregateSignature
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
-        for byte in bytes {
-            if *byte != 0 {
-                let sig = RawAggregateSignature::from_bytes(&bytes).map_err(|_| {
-                    DecodeError::BytesInvalid(
-                        format!("Invalid AggregateSignature bytes: {:?}", bytes).to_string(),
-                    )
-                })?;
+        if bytes[0] != 0 {
+            let sig = RawSignature::from_serialized(&bytes).map_err(|_| {
+                DecodeError::BytesInvalid(
+                    format!("Invalid AggregateSignature bytes: {:?}", bytes).to_string(),
+                )
+            })?;
 
-                return Ok(Self {
-                    aggregate_signature: sig,
-                    is_empty: false,
-                });
-            }
+            return Ok(Self {
+                aggregate_signature: sig,
+                is_empty: false,
+            });
         }
         Ok(Self::empty_signature())
     }
 
     /// Returns the underlying signature.
-    pub fn as_raw(&self) -> &RawAggregateSignature {
+    pub fn as_raw(&self) -> &RawSignature {
         &self.aggregate_signature
     }
 
     /// Returns the underlying signature.
-    pub fn from_point(point: G2Point) -> Self {
+    pub fn from_point(point: RawSignature) -> Self {
         Self {
-            aggregate_signature: RawAggregateSignature { point },
+            aggregate_signature: point,
             is_empty: false,
         }
     }
@@ -137,7 +161,7 @@ impl AggregateSignature {
     /// is_empty set to true
     pub fn empty_signature() -> Self {
         Self {
-            aggregate_signature: RawAggregateSignature::new(),
+            aggregate_signature: Default::default(),
             is_empty: true,
         }
     }

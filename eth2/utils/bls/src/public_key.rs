@@ -1,5 +1,4 @@
-use super::{SecretKey, BLS_PUBLIC_KEY_BYTE_SIZE};
-use milagro_bls::PublicKey as RawPublicKey;
+use super::{SecretKey, RawPublicKey, BLS_PUBLIC_KEY_BYTE_SIZE};
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
 use serde_hex::{encode as hex_encode, PrefixedHexVisitor};
@@ -17,7 +16,7 @@ pub struct PublicKey(RawPublicKey);
 
 impl PublicKey {
     pub fn from_secret_key(secret_key: &SecretKey) -> Self {
-        PublicKey(RawPublicKey::from_secret_key(secret_key.as_raw()))
+        PublicKey(secret_key.as_raw().get_publickey())
     }
 
     pub fn from_raw(raw: RawPublicKey) -> Self {
@@ -33,12 +32,12 @@ impl PublicKey {
     ///
     /// Identical to `self.as_uncompressed_bytes()`.
     pub fn as_bytes(&self) -> Vec<u8> {
-        self.as_raw().as_bytes()
+        self.as_raw().serialize()
     }
 
     /// Converts compressed bytes to PublicKey
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
-        let pubkey = RawPublicKey::from_bytes(&bytes).map_err(|_| {
+        let pubkey = RawPublicKey::from_serialized(&bytes).map_err(|_| {
             DecodeError::BytesInvalid(format!("Invalid PublicKey bytes: {:?}", bytes).to_string())
         })?;
 
@@ -47,12 +46,14 @@ impl PublicKey {
 
     /// Returns the PublicKey as (x, y) bytes
     pub fn as_uncompressed_bytes(&self) -> Vec<u8> {
-        RawPublicKey::as_uncompressed_bytes(&mut self.0.clone())
+        // TODO: Implement this in Herumi
+        self.as_bytes()
     }
 
     /// Converts (x, y) bytes to PublicKey
     pub fn from_uncompressed_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
-        let pubkey = RawPublicKey::from_uncompressed_bytes(&bytes).map_err(|_| {
+        // TODO: Implement this in Herumi
+        let pubkey = RawPublicKey::from_serialized(&bytes).map_err(|_| {
             DecodeError::BytesInvalid("Invalid PublicKey uncompressed bytes.".to_string())
         })?;
         Ok(PublicKey(pubkey))
@@ -101,7 +102,7 @@ impl Serialize for PublicKey {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&hex_encode(self.as_raw().as_bytes()))
+        serializer.serialize_str(&hex_encode(self.as_bytes()))
     }
 }
 

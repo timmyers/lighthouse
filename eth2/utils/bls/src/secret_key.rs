@@ -1,8 +1,7 @@
 extern crate rand;
 
-use super::BLS_SECRET_KEY_BYTE_SIZE;
+use super::{RawSecretKey, BLS_SECRET_KEY_BYTE_SIZE};
 use hex::encode as hex_encode;
-use milagro_bls::SecretKey as RawSecretKey;
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
 use serde_hex::PrefixedHexVisitor;
@@ -17,7 +16,9 @@ pub struct SecretKey(RawSecretKey);
 
 impl SecretKey {
     pub fn random() -> Self {
-        SecretKey(RawSecretKey::random(&mut rand::thread_rng()))
+        let mut sk: RawSecretKey = Default::default();
+        sk.set_by_csprng();
+        SecretKey(sk)
     }
 
     pub fn from_raw(raw: RawSecretKey) -> Self {
@@ -26,14 +27,14 @@ impl SecretKey {
 
     /// Returns the underlying point as compressed bytes.
     fn as_bytes(&self) -> Vec<u8> {
-        self.as_raw().as_bytes()
+        self.as_raw().serialize()
     }
 
     /// Instantiate a SecretKey from existing bytes.
     ///
     /// Note: this is _not_ SSZ decoding.
     pub fn from_bytes(bytes: &[u8]) -> Result<SecretKey, DecodeError> {
-        Ok(SecretKey(RawSecretKey::from_bytes(bytes).map_err(|e| {
+        Ok(SecretKey(RawSecretKey::from_serialized(bytes).map_err(|e| {
             DecodeError::BytesInvalid(format!(
                 "Invalid SecretKey bytes: {:?} Error: {:?}",
                 bytes, e
@@ -80,7 +81,7 @@ mod tests {
     #[test]
     pub fn test_ssz_round_trip() {
         let original =
-            SecretKey::from_bytes(b"jzjxxgjajfjrmgodszzsgqccmhnyvetcuxobhtynojtpdtbj").unwrap();
+            SecretKey::from_bytes(b"szzsgqccmhnyvetcuxobhtynojtpdtbj").unwrap();
 
         let bytes = ssz_encode(&original);
         let decoded = SecretKey::from_ssz_bytes(&bytes).unwrap();

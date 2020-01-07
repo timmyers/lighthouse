@@ -19,7 +19,7 @@ impl Case for BlsPrivToPub {
         // Convert message and domain to required types
         let mut sk =
             hex::decode(&secret[2..]).map_err(|e| Error::FailedToParseTest(format!("{:?}", e)))?;
-        pad_to_48(&mut sk);
+        //pad_to_48(&mut sk);
         let sk = SecretKey::from_bytes(&sk).unwrap();
         let pk = PublicKey::from_secret_key(&sk);
 

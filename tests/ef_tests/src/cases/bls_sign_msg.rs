@@ -24,7 +24,7 @@ impl Case for BlsSign {
         // Convert private_key, message and domain to required types
         let mut sk = hex::decode(&self.input.privkey[2..])
             .map_err(|e| Error::FailedToParseTest(format!("{:?}", e)))?;
-        pad_to_48(&mut sk);
+        //pad_to_48(&mut sk);
         let sk = SecretKey::from_bytes(&sk).unwrap();
         let msg = hex::decode(&self.input.message[2..])
             .map_err(|e| Error::FailedToParseTest(format!("{:?}", e)))?;

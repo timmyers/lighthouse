@@ -1,6 +1,4 @@
-use super::{SecretKey, BLS_PUBLIC_KEY_BYTE_SIZE};
-use milagro_bls::G1Point;
-use milagro_bls::PublicKey as RawPublicKey;
+use super::{RawPublicKey, SecretKey, BLS_PUBLIC_KEY_BYTE_SIZE};
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
 use serde_hex::{encode as hex_encode, PrefixedHexVisitor};
@@ -17,7 +15,7 @@ use std::hash::{Hash, Hasher};
 pub struct FakePublicKey {
     bytes: Vec<u8>,
     /// Never used, only use for compatibility with "real" `PublicKey`.
-    pub point: G1Point,
+    pub point: RawPublicKey,
 }
 
 impl FakePublicKey {
@@ -28,7 +26,7 @@ impl FakePublicKey {
     pub fn from_raw(raw: RawPublicKey) -> Self {
         Self {
             bytes: raw.clone().as_bytes(),
-            point: G1Point::new(),
+            point: Default::default(),
         }
     }
 
@@ -36,7 +34,7 @@ impl FakePublicKey {
     pub fn zero() -> Self {
         Self {
             bytes: vec![0; BLS_PUBLIC_KEY_BYTE_SIZE],
-            point: G1Point::new(),
+            point: Default::default(),
         }
     }
 
@@ -51,7 +49,7 @@ impl FakePublicKey {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
         Ok(Self {
             bytes: bytes.to_vec(),
-            point: G1Point::new(),
+            point: Default::default(),
         })
     }
 

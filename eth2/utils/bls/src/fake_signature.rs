@@ -1,6 +1,5 @@
-use super::{PublicKey, SecretKey, BLS_SIG_BYTE_SIZE};
+use super::{PublicKey, SecretKey, RawSignature, BLS_SIG_BYTE_SIZE};
 use hex::encode as hex_encode;
-use milagro_bls::G2Point;
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
 use serde_hex::PrefixedHexVisitor;
@@ -15,7 +14,7 @@ pub struct FakeSignature {
     bytes: Vec<u8>,
     is_empty: bool,
     /// Never used, only use for compatibility with "real" `Signature`.
-    pub point: G2Point,
+    pub point: RawSignature,
 }
 
 impl FakeSignature {
@@ -29,7 +28,7 @@ impl FakeSignature {
         Self {
             bytes: vec![0; BLS_SIG_BYTE_SIZE],
             is_empty: true,
-            point: G2Point::new(),
+            point: Default::default(),
         }
     }
 
@@ -69,7 +68,7 @@ impl FakeSignature {
             Ok(Self {
                 bytes: bytes.to_vec(),
                 is_empty,
-                point: G2Point::new(),
+                point: Default::default(),
             })
         }
     }

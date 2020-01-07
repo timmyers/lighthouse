@@ -20,14 +20,14 @@
 extern crate lazy_static;
 
 use eth2_hashing::hash;
-use milagro_bls::{Keypair, PublicKey, SecretKey};
+use bls_eth_rust::{PublicKey, SecretKey};
 use num_bigint::BigUint;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::fs::File;
 use std::path::PathBuf;
 
-pub const PRIVATE_KEY_BYTES: usize = 48;
+pub const PRIVATE_KEY_BYTES: usize = 32;
 pub const PUBLIC_KEY_BYTES: usize = 48;
 pub const HASH_BYTES: usize = 32;
 
@@ -36,6 +36,12 @@ lazy_static! {
         "52435875175126190479447740508185965837690552500527637822603658699938581184513"
             .parse::<BigUint>()
             .expect("Curve order should be valid");
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct Keypair {
+    pub pk: PublicKey,
+    pub sk: SecretKey,
 }
 
 /// Return a G1 point for the given `validator_index`, encoded as a compressed point in
@@ -58,7 +64,7 @@ pub fn be_private_key(validator_index: usize) -> [u8; PRIVATE_KEY_BYTES] {
 
 /// Return a public and private keypair for a given `validator_index`.
 pub fn keypair(validator_index: usize) -> Keypair {
-    let sk = SecretKey::from_bytes(&be_private_key(validator_index)).unwrap_or_else(|_| {
+    let sk = SecretKey::from_serialized(&be_private_key(validator_index)).unwrap_or_else(|_| {
         panic!(
             "Should build valid private key for validator index {}",
             validator_index
@@ -66,7 +72,7 @@ pub fn keypair(validator_index: usize) -> Keypair {
     });
 
     Keypair {
-        pk: PublicKey::from_secret_key(&sk),
+        pk: sk.get_publickey(),
         sk,
     }
 }
@@ -93,14 +99,14 @@ impl TryInto<Keypair> for YamlKeypair {
         let sk = {
             let mut bytes = vec![0; PRIVATE_KEY_BYTES - privkey.len()];
             bytes.extend_from_slice(&privkey);
-            SecretKey::from_bytes(&bytes)
+            SecretKey::from_serialized(&bytes)
                 .map_err(|e| format!("Failed to decode bytes into secret key: {:?}", e))?
         };
 
         let pk = {
             let mut bytes = vec![0; PUBLIC_KEY_BYTES - pubkey.len()];
             bytes.extend_from_slice(&pubkey);
-            PublicKey::from_bytes(&bytes)
+            PublicKey::from_serialized(&bytes)
                 .map_err(|e| format!("Failed to decode bytes into public key: {:?}", e))?
         };
 

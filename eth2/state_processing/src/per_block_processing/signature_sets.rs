@@ -2,7 +2,7 @@
 //! validated individually, or alongside in others in a potentially cheaper bulk operation.
 //!
 //! This module exposes one function to extract each type of `SignatureSet` from a `BeaconBlock`.
-use bls::{G1Point, G1Ref, SignatureSet, SignedMessage};
+use bls::{RawPublicKey, G1Ref, SignatureSet, SignedMessage};
 use std::borrow::Cow;
 use std::convert::TryInto;
 use tree_hash::{SignedRoot, TreeHash};
@@ -119,7 +119,7 @@ pub fn proposer_slashing_signature_set<'a, T: EthSpec>(
 fn block_header_signature_set<'a, T: EthSpec>(
     state: &'a BeaconState<T>,
     header: &'a BeaconBlockHeader,
-    pubkey: Cow<'a, G1Point>,
+    pubkey: Cow<'a, RawPublicKey>,
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>> {
     let domain = spec.get_domain(
@@ -241,7 +241,7 @@ pub fn exit_signature_set<'a, T: EthSpec>(
 fn validator_pubkey<'a, T: EthSpec>(
     state: &'a BeaconState<T>,
     validator_index: usize,
-) -> Result<Cow<'a, G1Point>> {
+) -> Result<Cow<'a, RawPublicKey>> {
     let pubkey_bytes = &state
         .validators
         .get(validator_index)
@@ -250,7 +250,7 @@ fn validator_pubkey<'a, T: EthSpec>(
 
     pubkey_bytes
         .try_into()
-        .map(|pubkey: PublicKey| Cow::Owned(pubkey.as_raw().point.clone()))
+        .map(|pubkey: PublicKey| Cow::Owned(pubkey.as_raw().clone()))
         .map_err(|_| Error::BadBlsBytes {
             validator_index: validator_index as u64,
         })
